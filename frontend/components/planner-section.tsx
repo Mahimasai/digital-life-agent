@@ -1,19 +1,68 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
 import { Calendar } from "lucide-react"
+import { api } from "@/lib/api"
 
-const schedule = [
-  { time: "9:00", label: "Email Review", duration: 1, color: "#06b6d4" },
-  { time: "10:00", label: "Team Standup", duration: 0.5, color: "#8b5cf6" },
-  { time: "10:30", label: "Budget Review", duration: 1.5, color: "#ef4444" },
-  { time: "12:00", label: "Lunch Break", duration: 1, color: "#22c55e" },
-  { time: "13:00", label: "Deep Work", duration: 2, color: "#f59e0b" },
-  { time: "15:00", label: "Meetings", duration: 2, color: "#ec4899" },
-  { time: "17:00", label: "Wrap Up", duration: 1, color: "#06b6d4" },
-]
+type BackendBlock = {
+  start: string
+  end: string
+  label: string
+  type: string
+}
+
+type UiBlock = {
+  time: string
+  label: string
+  color: string
+}
+
+function mapBackendToUi(blocks: BackendBlock[]): UiBlock[] {
+  const colors: Record<string, string> = {
+    "deep-work": "#f59e0b",
+    meeting: "#8b5cf6",
+    break: "#22c55e",
+  }
+
+  if (!blocks || blocks.length === 0) {
+    // fallback to your original schedule
+    return [
+      { time: "9:00", label: "Email Review", color: "#06b6d4" },
+      { time: "10:00", label: "Team Standup", color: "#8b5cf6" },
+      { time: "10:30", label: "Budget Review", color: "#ef4444" },
+      { time: "12:00", label: "Lunch Break", color: "#22c55e" },
+      { time: "13:00", label: "Deep Work", color: "#f59e0b" },
+      { time: "15:00", label: "Meetings", color: "#ec4899" },
+      { time: "17:00", label: "Wrap Up", color: "#06b6d4" },
+    ]
+  }
+
+  return blocks.map((b) => ({
+    time: b.start,
+    label: b.label,
+    color: colors[b.type] ?? "#06b6d4",
+  }))
+}
 
 export function PlannerSection() {
+  const [schedule, setSchedule] = useState<UiBlock[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    api
+      .getScheduleToday<BackendBlock[]>()   // 👈 tell TS what T is
+      .then((data) => {
+        setSchedule(mapBackendToUi(data));
+      })
+      .catch((err) => {
+        console.error(err);
+        setError("Failed to load schedule");
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
     <section className="relative py-24 px-4">
       <div className="max-w-6xl mx-auto">
@@ -27,80 +76,97 @@ export function PlannerSection() {
             <Calendar className="size-4 text-neon-purple" />
             <span className="text-sm text-neon-purple">Planner Planet</span>
           </div>
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">Orbital Day Planner</h2>
-          <p className="text-white/60 max-w-xl mx-auto">Your schedule visualized as glowing orbital segments</p>
+          <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
+            Orbital Day Planner
+          </h2>
+          <p className="text-white/60 max-w-xl mx-auto">
+            Your schedule visualized as glowing orbital segments
+          </p>
         </motion.div>
 
-        {/* Circular orbit timeline */}
-        <div className="relative max-w-lg mx-auto aspect-square">
-          {/* Orbit rings */}
-          <div className="absolute inset-0 rounded-full border border-white/10" />
-          <div className="absolute inset-8 rounded-full border border-white/10" />
-          <div className="absolute inset-16 rounded-full border border-white/5" />
+        {loading && (
+          <p className="text-center text-sm text-white/60">
+            Computing today&apos;s orbit…
+          </p>
+        )}
+        {error && (
+          <p className="text-center text-sm text-red-400">{error}</p>
+        )}
 
-          {/* Center */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <motion.div
-              className="w-24 h-24 rounded-full flex items-center justify-center"
-              style={{
-                background: "radial-gradient(circle, rgba(139, 92, 246, 0.3) 0%, transparent 70%)",
-                boxShadow: "0 0 60px rgba(139, 92, 246, 0.5)",
-              }}
-              animate={{
-                scale: [1, 1.1, 1],
-              }}
-              transition={{
-                duration: 3,
-                repeat: Number.POSITIVE_INFINITY,
-                ease: "easeInOut",
-              }}
-            >
-              <span className="text-2xl font-bold text-white">Today</span>
-            </motion.div>
-          </div>
+        {!loading && !error && (
+          <div className="relative max-w-lg mx-auto aspect-square">
+            {/* Orbit rings */}
+            <div className="absolute inset-0 rounded-full border border-white/10" />
+            <div className="absolute inset-8 rounded-full border border-white/10" />
+            <div className="absolute inset-16 rounded-full border border-white/5" />
 
-          {/* Schedule segments on orbit */}
-          {schedule.map((item, index) => {
-            const angle = (index / schedule.length) * 360 - 90
-            const radius = 45
-            const x = 50 + radius * Math.cos((angle * Math.PI) / 180)
-            const y = 50 + radius * Math.sin((angle * Math.PI) / 180)
-
-            return (
+            {/* Center */}
+            <div className="absolute inset-0 flex items-center justify-center">
               <motion.div
-                key={item.time}
-                className="absolute"
+                className="w-24 h-24 rounded-full flex items-center justify-center"
                 style={{
-                  left: `${x}%`,
-                  top: `${y}%`,
-                  transform: "translate(-50%, -50%)",
+                  background:
+                    "radial-gradient(circle, rgba(139, 92, 246, 0.3) 0%, transparent 70%)",
+                  boxShadow: "0 0 60px rgba(139, 92, 246, 0.5)",
                 }}
-                initial={{ opacity: 0, scale: 0 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
+                animate={{
+                  scale: [1, 1.1, 1],
+                }}
+                transition={{
+                  duration: 3,
+                  repeat: Number.POSITIVE_INFINITY,
+                  ease: "easeInOut",
+                }}
               >
-                <motion.div className="relative group cursor-pointer" whileHover={{ scale: 1.1 }}>
-                  {/* Glow */}
-                  <div
-                    className="absolute inset-0 rounded-2xl blur-xl opacity-50 -z-10"
-                    style={{ background: item.color }}
-                  />
-                  <div
-                    className="px-3 py-2 rounded-2xl backdrop-blur-xl border border-white/20 min-w-max"
-                    style={{
-                      background: `linear-gradient(135deg, ${item.color}30 0%, ${item.color}10 100%)`,
-                      boxShadow: `0 0 20px ${item.color}40`,
-                    }}
-                  >
-                    <p className="text-xs font-semibold text-white">{item.time}</p>
-                    <p className="text-xs text-white/70">{item.label}</p>
-                  </div>
-                </motion.div>
+                <span className="text-2xl font-bold text-white">Today</span>
               </motion.div>
-            )
-          })}
-        </div>
+            </div>
+
+            {/* Schedule segments on orbit */}
+            {schedule.map((item, index) => {
+              const angle = (index / schedule.length) * 360 - 90
+              const radius = 45
+              const x = 50 + radius * Math.cos((angle * Math.PI) / 180)
+              const y = 50 + radius * Math.sin((angle * Math.PI) / 180)
+
+              return (
+                <motion.div
+                  key={item.time + item.label}
+                  className="absolute"
+                  style={{
+                    left: `${x}%`,
+                    top: `${y}%`,
+                    transform: "translate(-50%, -50%)",
+                  }}
+                  initial={{ opacity: 0, scale: 0 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <motion.div className="relative group cursor-pointer" whileHover={{ scale: 1.1 }}>
+                    {/* Glow */}
+                    <div
+                      className="absolute inset-0 rounded-2xl blur-xl opacity-50 -z-10"
+                      style={{ background: item.color }}
+                    />
+                    <div
+                      className="px-3 py-2 rounded-2xl backdrop-blur-xl border border-white/20 min-w-max"
+                      style={{
+                        background: `linear-gradient(135deg, ${item.color}30 0%, ${item.color}10 100%)`,
+                        boxShadow: `0 0 20px ${item.color}40`,
+                      }}
+                    >
+                      <p className="text-xs font-semibold text-white">
+                        {item.time}
+                      </p>
+                      <p className="text-xs text-white/70">{item.label}</p>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </section>
   )
