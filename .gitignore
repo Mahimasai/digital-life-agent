@@ -1,0 +1,10 @@
+# Ignore Python virtual environments
+venv/
+**/venv/
+
+# Ignore env files (your API keys)
+backend/.env
+backend/.env.*
+.env
+.env.*
+
