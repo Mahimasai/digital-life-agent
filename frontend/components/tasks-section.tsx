@@ -1,72 +1,63 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { motion } from "framer-motion"
-import { CheckSquare, AlertCircle, Clock, ChevronRight } from "lucide-react"
-import { api } from "@/lib/api"
-
-type BackendTask = {
-  id: number
-  title: string
-  source: string
-  priority: "high" | "medium" | "low" | string
-  due?: string | null
-}
+import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { CheckSquare, AlertCircle, Clock, ChevronRight } from "lucide-react";
+import { api, BackendTask } from "@/lib/api";
 
 type UiTask = {
-  title: string
-  priority: "High" | "Medium" | "Low" | string
-  color: string
-  source: string
-}
+  id: number;
+  title: string;
+  priorityLabel: string;
+  color: string;
+  source: string;
+};
 
 function mapBackendToUi(tasks: BackendTask[]): UiTask[] {
-  const colors: Record<string, string> = {
-    high: "#ef4444",
-    medium: "#f59e0b",
-    low: "#22c55e",
-  }
+  return tasks.map((t, idx) => {
+    const p = t.priority.toLowerCase();
 
-  if (!tasks || tasks.length === 0) {
-    // fallback to your original demo data
-    return [
-      { title: "Review Q4 budget proposal", priority: "High", color: "#ef4444", source: "Email: CFO" },
-      { title: "Schedule team offsite venue", priority: "Medium", color: "#f59e0b", source: "Email: HR" },
-      { title: "Update project documentation", priority: "Low", color: "#22c55e", source: "Email: Dev Team" },
-      { title: "Prepare board presentation", priority: "High", color: "#ef4444", source: "Calendar" },
-      { title: "Code review for PR #247", priority: "Medium", color: "#f59e0b", source: "CodeRabbit" },
-    ]
-  }
-
-  return tasks.map((t) => {
-    const key = t.priority.toLowerCase()
-    return {
-      title: t.title,
-      priority: (key.charAt(0).toUpperCase() + key.slice(1)) as UiTask["priority"],
-      color: colors[key] ?? "#06b6d4",
-      source: t.source ? `Source: ${t.source}` : "Source: email",
+    if (p.includes("high")) {
+      return {
+        id: t.id ?? idx,
+        title: t.title,
+        priorityLabel: "High",
+        color: "#ef4444",
+        source: t.source,
+      };
     }
-  })
+    if (p.includes("low")) {
+      return {
+        id: t.id ?? idx,
+        title: t.title,
+        priorityLabel: "Low",
+        color: "#22c55e",
+        source: t.source,
+      };
+    }
+    // default medium / other
+    return {
+      id: t.id ?? idx,
+      title: t.title,
+      priorityLabel: "Medium",
+      color: "#f59e0b",
+      source: t.source,
+    };
+  });
 }
 
 export function TasksSection() {
-  const [tasks, setTasks] = useState<UiTask[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [tasks, setTasks] = useState<UiTask[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     api
-      .getTasks<BackendTask[]>()
-      .then((data) => {
-        setTasks(mapBackendToUi(data));
-      })
-      .catch((err) => {
-        console.error(err);
-        setError("Failed to load tasks");
-      })
+      .getTasks()
+      .then((data) => setTasks(mapBackendToUi(data)))
+      .catch(() => setError("Failed to load tasks"))
       .finally(() => setLoading(false));
   }, []);
-
 
   return (
     <section className="relative py-24 px-4 overflow-hidden">
@@ -104,25 +95,30 @@ export function TasksSection() {
             <CheckSquare className="size-4 text-neon-magenta" />
             <span className="text-sm text-neon-magenta">Tasks Planet</span>
           </div>
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">Smart Task Extraction</h2>
+          <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
+            Smart Task Extraction
+          </h2>
           <p className="text-white/60 max-w-xl mx-auto">
-            AI extracts actionable tasks from emails and assigns intelligent priorities
+            AI extracts actionable tasks from emails and assigns intelligent
+            priorities
           </p>
         </motion.div>
 
         {loading && (
-          <p className="text-center text-sm text-white/60">Loading tasks…</p>
-        )}
-        {error && (
-          <p className="text-center text-sm text-red-400">{error}</p>
+          <p className="text-center text-sm text-white/60 mb-4">
+            Loading tasks…
+          </p>
         )}
 
-        {/* Floating task cards */}
+        {error && (
+          <p className="text-center text-sm text-red-400 mb-4">{error}</p>
+        )}
+
         {!loading && !error && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-4xl mx-auto">
             {tasks.map((task, index) => (
               <motion.div
-                key={task.title + index}
+                key={task.id}
                 className="group relative"
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -149,9 +145,13 @@ export function TasksSection() {
                         color: task.color,
                       }}
                     >
-                      {task.priority === "High" && <AlertCircle className="size-3" />}
-                      {task.priority === "Medium" && <Clock className="size-3" />}
-                      {task.priority}
+                      {task.priorityLabel === "High" && (
+                        <AlertCircle className="size-3" />
+                      )}
+                      {task.priorityLabel === "Medium" && (
+                        <Clock className="size-3" />
+                      )}
+                      {task.priorityLabel}
                     </span>
                     <ChevronRight className="size-4 text-white/30 group-hover:text-white/60 transition-colors" />
                   </div>
@@ -166,5 +166,5 @@ export function TasksSection() {
         )}
       </div>
     </section>
-  )
+  );
 }

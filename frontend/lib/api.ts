@@ -1,20 +1,47 @@
 // frontend/lib/api.ts
-export const API_BASE_URL =
-    process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+export const BASE_URL =
+    process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
 
-async function fetchJson<T>(path: string): Promise<T> {
-    const res = await fetch(`${API_BASE_URL}${path}`, { cache: "no-store" });
+async function getJSON<T>(path: string): Promise<T> {
+    const res = await fetch(`${BASE_URL}${path}`, {
+        // prevent Next from trying to cache
+        cache: "no-store",
+    });
+
     if (!res.ok) {
-        throw new Error(`API error ${res.status} for ${path}`);
+        throw new Error(`Request failed: ${res.status} ${res.statusText}`);
     }
-    // 👇 tell TS that the JSON is of type T
-    const data = (await res.json()) as T;
-    return data;
+
+    return res.json();
 }
 
-// generic helpers: you choose T when you call them
+// ---- Types that match backend models ----
+
+export type BackendEmail = {
+    id: number;
+    subject: string;
+    summary: string;
+    category: string;
+};
+
+export type BackendTask = {
+    id: number;
+    title: string;
+    priority: string;
+    source: string;
+};
+
+export type BackendScheduleBlock = {
+    start: string;
+    end: string;
+    label: string;
+    type: string;
+};
+
 export const api = {
-    getEmailsToday: <T = unknown>() => fetchJson<T>("/emails/today"),
-    getTasks: <T = unknown>() => fetchJson<T>("/tasks"),
-    getScheduleToday: <T = unknown>() => fetchJson<T>("/schedule/today"),
+    getEmails: () => getJSON<BackendEmail[]>("/emails/today"),
+    getTasks: () => getJSON<BackendTask[]>("/tasks"),
+    getSchedule: () => getJSON<BackendScheduleBlock[]>("/schedule/today"),
+    runAgent: () =>
+        fetch(`${BASE_URL}/agent/run`, { method: "POST" }).then((r) => r.json()),
 };

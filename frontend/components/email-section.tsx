@@ -1,84 +1,82 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { motion } from "framer-motion"
-import { Mail, Star, Clock, Newspaper, Sparkles } from "lucide-react"
-import { api } from "@/lib/api"
+import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { Mail, Star, Clock, Newspaper, Sparkles } from "lucide-react";
+import { api, BackendEmail } from "@/lib/api";
 
-// Shape of data coming from backend
-type BackendEmail = {
-  id: number
-  sender: string
-  subject: string
-  body: string
-  timestamp: string
-  category?: string | null
-  summary?: string | null
-}
-
-// Shape we use for UI cards
+// UI type
 type UiEmail = {
-  category: string
-  color: string
-  subject: string
-  summary: string
-  icon: typeof Star
-}
+  id: number;
+  categoryLabel: string;
+  color: string;
+  subject: string;
+  summary: string;
+  Icon: typeof Star;
+};
 
-// simple mapping: turn backend emails into 3 UI cards
+// Map backend → pretty UI
 function mapBackendToUi(emails: BackendEmail[]): UiEmail[] {
-  const base: UiEmail[] = [
-    {
-      category: "Important",
-      color: "#ef4444",
-      subject: emails[0]?.subject ?? "Q4 Budget Review Required",
-      summary:
-        emails[0]?.body ??
-        "CFO needs approval on budget revisions by Friday",
-      icon: Star,
-    },
-    {
-      category: "Later",
-      color: "#f59e0b",
-      subject: emails[1]?.subject ?? "Team Offsite Planning",
-      summary:
-        emails[1]?.body ??
-        "Suggestions needed for next month's team building",
-      icon: Clock,
-    },
-    {
-      category: "Newsletter",
-      color: "#06b6d4",
-      subject: emails[2]?.subject ?? "AI Weekly Digest",
-      summary:
-        emails[2]?.body ??
-        "Latest updates on LLM developments and tools",
-      icon: Newspaper,
-    },
-  ]
+  return emails.map((e, idx) => {
+    const category = e.category?.toLowerCase() || "other";
 
-  // only keep ones that actually exist
-  return base.filter(Boolean)
+    if (category.includes("important") || category.includes("urgent")) {
+      return {
+        id: e.id ?? idx,
+        categoryLabel: "Important",
+        color: "#ef4444",
+        subject: e.subject,
+        summary: e.summary,
+        Icon: Star,
+      };
+    }
+
+    if (category.includes("later") || category.includes("follow")) {
+      return {
+        id: e.id ?? idx,
+        categoryLabel: "Later",
+        color: "#f59e0b",
+        subject: e.subject,
+        summary: e.summary,
+        Icon: Clock,
+      };
+    }
+
+    if (category.includes("news") || category.includes("digest")) {
+      return {
+        id: e.id ?? idx,
+        categoryLabel: "Newsletter",
+        color: "#06b6d4",
+        subject: e.subject,
+        summary: e.summary,
+        Icon: Newspaper,
+      };
+    }
+
+    // default
+    return {
+      id: e.id ?? idx,
+      categoryLabel: e.category || "Other",
+      color: "#8b5cf6",
+      subject: e.subject,
+      summary: e.summary,
+      Icon: Mail,
+    };
+  });
 }
 
 export function EmailSection() {
-  const [emails, setEmails] = useState<UiEmail[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [emails, setEmails] = useState<UiEmail[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     api
-      .getEmailsToday<BackendEmail[]>()
-      .then((data) => {
-        setEmails(mapBackendToUi(data));
-      })
-      .catch((err) => {
-        console.error(err);
-        setError("Failed to load emails");
-      })
+      .getEmails()
+      .then((data) => setEmails(mapBackendToUi(data)))
+      .catch(() => setError("Failed to load emails"))
       .finally(() => setLoading(false));
   }, []);
-
 
   return (
     <section className="relative py-24 px-4">
@@ -104,14 +102,15 @@ export function EmailSection() {
 
         {/* Loading / error states */}
         {loading && (
-          <p className="text-center text-sm text-white/60">
-            Loading today&apos;s emails…
+          <p className="text-center text-sm text-white/60 mb-4">
+            Summoning your inbox…
           </p>
         )}
         {error && (
-          <p className="text-center text-sm text-red-400">{error}</p>
+          <p className="text-center text-sm text-red-400 mb-4">{error}</p>
         )}
 
+        {/* Email orb / panel */}
         {!loading && !error && (
           <motion.div
             className="relative mx-auto max-w-2xl"
@@ -152,19 +151,19 @@ export function EmailSection() {
               <div className="space-y-4">
                 {emails.map((email, index) => (
                   <motion.div
-                    key={email.subject + index}
+                    key={email.id}
                     className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
                     initial={{ opacity: 0, x: -20 }}
                     whileInView={{ opacity: 1, x: 0 }}
                     viewport={{ once: true }}
-                    transition={{ delay: index * 0.1 }}
+                    transition={{ delay: index * 0.05 }}
                   >
                     <div className="flex items-start gap-3">
                       <div
                         className="p-2 rounded-lg"
                         style={{ background: `${email.color}20` }}
                       >
-                        <email.icon
+                        <email.Icon
                           className="size-4"
                           style={{ color: email.color }}
                         />
@@ -178,7 +177,7 @@ export function EmailSection() {
                               color: email.color,
                             }}
                           >
-                            {email.category}
+                            {email.categoryLabel}
                           </span>
                         </div>
                         <h4 className="font-medium text-white truncate">
@@ -197,5 +196,5 @@ export function EmailSection() {
         )}
       </div>
     </section>
-  )
+  );
 }

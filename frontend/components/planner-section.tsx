@@ -1,65 +1,42 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { motion } from "framer-motion"
-import { Calendar } from "lucide-react"
-import { api } from "@/lib/api"
+import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { Calendar } from "lucide-react";
+import { api, BackendScheduleBlock } from "@/lib/api";
 
-type BackendBlock = {
-  start: string
-  end: string
-  label: string
-  type: string
-}
+type UiScheduleBlock = {
+  start: string;
+  end: string;
+  label: string;
+  type: string;
+  color: string;
+};
 
-type UiBlock = {
-  time: string
-  label: string
-  color: string
-}
+function mapBackendToUi(blocks: BackendScheduleBlock[]): UiScheduleBlock[] {
+  return blocks.map((b) => {
+    const t = b.type.toLowerCase();
+    let color = "#06b6d4"; // default teal
 
-function mapBackendToUi(blocks: BackendBlock[]): UiBlock[] {
-  const colors: Record<string, string> = {
-    "deep-work": "#f59e0b",
-    meeting: "#8b5cf6",
-    break: "#22c55e",
-  }
+    if (t.includes("meeting")) color = "#ec4899";
+    else if (t.includes("deep") || t.includes("focus")) color = "#f59e0b";
+    else if (t.includes("break") || t.includes("lunch")) color = "#22c55e";
+    else if (t.includes("admin")) color = "#8b5cf6";
 
-  if (!blocks || blocks.length === 0) {
-    // fallback to your original schedule
-    return [
-      { time: "9:00", label: "Email Review", color: "#06b6d4" },
-      { time: "10:00", label: "Team Standup", color: "#8b5cf6" },
-      { time: "10:30", label: "Budget Review", color: "#ef4444" },
-      { time: "12:00", label: "Lunch Break", color: "#22c55e" },
-      { time: "13:00", label: "Deep Work", color: "#f59e0b" },
-      { time: "15:00", label: "Meetings", color: "#ec4899" },
-      { time: "17:00", label: "Wrap Up", color: "#06b6d4" },
-    ]
-  }
-
-  return blocks.map((b) => ({
-    time: b.start,
-    label: b.label,
-    color: colors[b.type] ?? "#06b6d4",
-  }))
+    return { ...b, color };
+  });
 }
 
 export function PlannerSection() {
-  const [schedule, setSchedule] = useState<UiBlock[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [schedule, setSchedule] = useState<UiScheduleBlock[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     api
-      .getScheduleToday<BackendBlock[]>()   // 👈 tell TS what T is
-      .then((data) => {
-        setSchedule(mapBackendToUi(data));
-      })
-      .catch((err) => {
-        console.error(err);
-        setError("Failed to load schedule");
-      })
+      .getSchedule()
+      .then((data) => setSchedule(mapBackendToUi(data)))
+      .catch(() => setError("Failed to load schedule"))
       .finally(() => setLoading(false));
   }, []);
 
@@ -85,12 +62,13 @@ export function PlannerSection() {
         </motion.div>
 
         {loading && (
-          <p className="text-center text-sm text-white/60">
-            Computing today&apos;s orbit…
+          <p className="text-center text-sm text-white/60 mb-4">
+            Loading schedule…
           </p>
         )}
+
         {error && (
-          <p className="text-center text-sm text-red-400">{error}</p>
+          <p className="text-center text-sm text-red-400 mb-4">{error}</p>
         )}
 
         {!loading && !error && (
@@ -124,14 +102,14 @@ export function PlannerSection() {
 
             {/* Schedule segments on orbit */}
             {schedule.map((item, index) => {
-              const angle = (index / schedule.length) * 360 - 90
-              const radius = 45
-              const x = 50 + radius * Math.cos((angle * Math.PI) / 180)
-              const y = 50 + radius * Math.sin((angle * Math.PI) / 180)
+              const angle = (index / schedule.length) * 360 - 90;
+              const radius = 45;
+              const x = 50 + radius * Math.cos((angle * Math.PI) / 180);
+              const y = 50 + radius * Math.sin((angle * Math.PI) / 180);
 
               return (
                 <motion.div
-                  key={item.time + item.label}
+                  key={`${item.start}-${item.label}-${index}`}
                   className="absolute"
                   style={{
                     left: `${x}%`,
@@ -143,7 +121,10 @@ export function PlannerSection() {
                   viewport={{ once: true }}
                   transition={{ delay: index * 0.1 }}
                 >
-                  <motion.div className="relative group cursor-pointer" whileHover={{ scale: 1.1 }}>
+                  <motion.div
+                    className="relative group cursor-pointer"
+                    whileHover={{ scale: 1.1 }}
+                  >
                     {/* Glow */}
                     <div
                       className="absolute inset-0 rounded-2xl blur-xl opacity-50 -z-10"
@@ -157,17 +138,17 @@ export function PlannerSection() {
                       }}
                     >
                       <p className="text-xs font-semibold text-white">
-                        {item.time}
+                        {item.start}
                       </p>
                       <p className="text-xs text-white/70">{item.label}</p>
                     </div>
                   </motion.div>
                 </motion.div>
-              )
+              );
             })}
           </div>
         )}
       </div>
     </section>
-  )
+  );
 }
