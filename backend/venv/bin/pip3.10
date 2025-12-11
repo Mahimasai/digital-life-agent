@@ -1,4 +1,4 @@
-#!/home/mahimasai/Desktop/digital-life-agent/digital-life-agent/backend/venv/bin/python
+#!/home/mahimasai/Desktop/digital-life-agent/digital-life-agent/backend/venv/bin/python3
 # -*- coding: utf-8 -*-
 import re
 import sys

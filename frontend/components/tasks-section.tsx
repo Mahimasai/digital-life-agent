@@ -1,65 +1,71 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { motion } from "framer-motion"
-import { CheckSquare, AlertCircle, Clock, ChevronRight } from "lucide-react"
-import { api } from "@/lib/api"
+import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { CheckSquare, AlertCircle, Clock, ChevronRight } from "lucide-react";
+import { api } from "@/lib/api";
 
 type BackendTask = {
-  id: number
-  title: string
-  source: string
-  priority: "high" | "medium" | "low" | string
-  due?: string | null
-}
+  id: number;
+  title: string;
+  source?: string;
+  priority?: "high" | "medium" | "low" | string;
+  due?: string | null;
+};
 
 type UiTask = {
-  title: string
-  priority: "High" | "Medium" | "Low" | string
-  color: string
-  source: string
-}
+  title: string;
+  priority: "High" | "Medium" | "Low" | string;
+  color: string;
+  source: string;
+};
 
 function mapBackendToUi(tasks: BackendTask[]): UiTask[] {
   const colors: Record<string, string> = {
     high: "#ef4444",
     medium: "#f59e0b",
     low: "#22c55e",
-  }
+  };
 
   if (!tasks || tasks.length === 0) {
-    // fallback to your original demo data
     return [
       { title: "Review Q4 budget proposal", priority: "High", color: "#ef4444", source: "Email: CFO" },
       { title: "Schedule team offsite venue", priority: "Medium", color: "#f59e0b", source: "Email: HR" },
-      { title: "Update project documentation", priority: "Low", color: "#22c55e", source: "Email: Dev Team" },
-      { title: "Prepare board presentation", priority: "High", color: "#ef4444", source: "Calendar" },
-      { title: "Code review for PR #247", priority: "Medium", color: "#f59e0b", source: "CodeRabbit" },
-    ]
+    ];
   }
 
   return tasks.map((t) => {
-    const key = t.priority.toLowerCase()
+    const key = (t.priority ?? "medium").toString().toLowerCase();
     return {
       title: t.title,
       priority: (key.charAt(0).toUpperCase() + key.slice(1)) as UiTask["priority"],
       color: colors[key] ?? "#06b6d4",
       source: t.source ? `Source: ${t.source}` : "Source: email",
-    }
-  })
+    };
+  });
 }
 
 export function TasksSection() {
-  const [tasks, setTasks] = useState<UiTask[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [tasks, setTasks] = useState<UiTask[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
+  // update on agent:ran events
+  useEffect(() => {
+    const handler = (ev: any) => {
+      if (ev?.detail?.tasks) {
+        setTasks(mapBackendToUi(ev.detail.tasks));
+      }
+    };
+    window.addEventListener("agent:ran", handler);
+    return () => window.removeEventListener("agent:ran", handler);
+  }, []);
+
+  // initial fetch
   useEffect(() => {
     api
       .getTasks<BackendTask[]>()
-      .then((data) => {
-        setTasks(mapBackendToUi(data));
-      })
+      .then((data) => setTasks(mapBackendToUi(data)))
       .catch((err) => {
         console.error(err);
         setError("Failed to load tasks");
@@ -67,32 +73,8 @@ export function TasksSection() {
       .finally(() => setLoading(false));
   }, []);
 
-
   return (
     <section className="relative py-24 px-4 overflow-hidden">
-      {/* Star field effect */}
-      <div className="absolute inset-0 pointer-events-none">
-        {Array.from({ length: 30 }).map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute w-1 h-1 bg-white rounded-full"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-            }}
-            animate={{
-              opacity: [0.2, 0.8, 0.2],
-              scale: [1, 1.5, 1],
-            }}
-            transition={{
-              duration: 2 + Math.random() * 2,
-              repeat: Number.POSITIVE_INFINITY,
-              delay: Math.random() * 2,
-            }}
-          />
-        ))}
-      </div>
-
       <div className="max-w-6xl mx-auto relative z-10">
         <motion.div
           className="text-center mb-16"
@@ -110,14 +92,9 @@ export function TasksSection() {
           </p>
         </motion.div>
 
-        {loading && (
-          <p className="text-center text-sm text-white/60">Loading tasks…</p>
-        )}
-        {error && (
-          <p className="text-center text-sm text-red-400">{error}</p>
-        )}
+        {loading && <p className="text-center text-sm text-white/60">Loading tasks…</p>}
+        {error && <p className="text-center text-sm text-red-400">{error}</p>}
 
-        {/* Floating task cards */}
         {!loading && !error && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-4xl mx-auto">
             {tasks.map((task, index) => (
@@ -137,8 +114,7 @@ export function TasksSection() {
                 <div
                   className="p-4 rounded-2xl backdrop-blur-xl border border-white/10 h-full"
                   style={{
-                    background:
-                      "linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%)",
+                    background: "linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%)",
                   }}
                 >
                   <div className="flex items-start justify-between gap-2 mb-3">
@@ -155,9 +131,7 @@ export function TasksSection() {
                     </span>
                     <ChevronRight className="size-4 text-white/30 group-hover:text-white/60 transition-colors" />
                   </div>
-                  <h4 className="font-medium text-white mb-2 text-sm">
-                    {task.title}
-                  </h4>
+                  <h4 className="font-medium text-white mb-2 text-sm">{task.title}</h4>
                   <p className="text-xs text-white/40">{task.source}</p>
                 </div>
               </motion.div>
@@ -166,5 +140,7 @@ export function TasksSection() {
         )}
       </div>
     </section>
-  )
+  );
 }
+
+export default TasksSection;

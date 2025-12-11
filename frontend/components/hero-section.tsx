@@ -1,11 +1,36 @@
+// frontend/components/hero-section.tsx
 "use client"
 
+import React, { useState } from "react"
 import { motion } from "framer-motion"
-import { Mail, CheckSquare, Calendar, Sparkles } from "lucide-react"
+import { Mail, CheckSquare, Calendar, Sparkles, Rocket } from "lucide-react"
 import { PlanetCard } from "./planet-card"
 import { Button } from "@/components/ui/button"
+import { api } from "@/lib/api"
 
 export function HeroSection() {
+  const [running, setRunning] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+
+  async function runAgent() {
+    try {
+      setRunning(true)
+      setMessage(null)
+      const res = await api.runAgent()
+      console.log("Agent Output:", res)
+      // show backend note if fallback was used
+      if (res?.note) setMessage(res.note)
+      else setMessage("✨ Agent completed successfully! Check the sections below.")
+      // dispatch event for sections to update
+      window.dispatchEvent(new CustomEvent("agent:ran", { detail: res }))
+    } catch (err) {
+      console.error(err)
+      setMessage("⚠️ Agent run failed. Check backend.")
+    } finally {
+      setRunning(false)
+    }
+  }
+
   return (
     <section className="relative min-h-screen flex flex-col items-center justify-center px-4 py-20 overflow-hidden">
       {/* Content */}
@@ -34,24 +59,35 @@ export function HeroSection() {
         </h1>
 
         <p className="text-lg md:text-xl text-white/70 max-w-2xl mx-auto mb-8 text-pretty">
-          The platform that reads your emails, extracts tasks, plans your day, runs automations, and continuously
-          improves itself with Oumi AI evaluation.
+          The platform that reads your emails, extracts tasks, plans your day, runs automations,
+          and continuously improves itself with AI evaluation.
         </p>
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+        {/* 🔥 Run Agent Button */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="flex flex-col items-center gap-3"
+        >
           <Button
+            onClick={runAgent}
+            disabled={running}
             size="lg"
-            className="px-8 py-6 text-lg font-semibold bg-gradient-to-r from-neon-purple to-neon-cyan text-white border-0 hover:opacity-90 transition-opacity"
+            className="px-8 py-6 text-lg font-semibold bg-gradient-to-r from-neon-magenta via-neon-purple to-neon-cyan text-white border-0 hover:opacity-90 transition-opacity flex items-center gap-2"
             style={{
               boxShadow: "0 0 40px rgba(139, 92, 246, 0.5), 0 0 80px rgba(6, 182, 212, 0.3)",
             }}
           >
-            Open Command Center
+            <Rocket className="size-5" />
+            {running ? "Running Agent…" : "Run My Agent"}
           </Button>
+
+          {message && <p className="text-sm text-neon-cyan animate-pulse">{message}</p>}
         </motion.div>
       </motion.div>
 
-      {/* Floating Planet Cards */}
+      {/* Floating Planets */}
       <div className="absolute inset-0 pointer-events-none">
         {/* Email Planet */}
         <div className="absolute top-[15%] left-[5%] md:left-[10%]">
